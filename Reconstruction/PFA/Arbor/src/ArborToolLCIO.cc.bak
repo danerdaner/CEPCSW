@@ -2,7 +2,7 @@
 #include "ArborTool.h"
 #include "Arbor.h"
 #include "DetectorPos.hh"
-#include "HelixClassD.hh"
+#include "HelixClass.hh"
 #include <TMath.h>
 #include <values.h>
 #include <cmath>
@@ -32,13 +32,11 @@
 #include "DD4hep/IDDescriptor.h"
 #include "DD4hep/Plugins.h"
 
-#include "cellIDDecoder.h"
 #include <DDRec/DetectorData.h>
 #include <DDRec/CellIDPositionConverter.h>
 #include "DetInterface/IGeomSvc.h"
 
 using namespace std;
-bool _USE_LCIO=0;
 /* 
 void ClusterBuilding( LCEvent * evtPP, std::string Name, std::vector<CalorimeterHit*> Hits, std::vector< std::vector<int> > BranchOrder, int DHCALFlag )
 {
@@ -118,13 +116,8 @@ ArborToolLCIO::ArborToolLCIO(const std::string& name,ISvcLocator* svcLoc)
      : GaudiAlgorithm(name, svcLoc)
 {
 	m_geosvc=service<IGeomSvc>("GeomSvc");
-     m_encoder_str = "M:3,S-1:3,I:9,J:9,K-1:6";
 }
 	
-
-ArborToolLCIO::~ArborToolLCIO()
-{
-}
 void ArborToolLCIO::ClusterBuilding( DataHandle<edm4hep::ClusterCollection>& _currbranchcoll, std::vector<edm4hep::ConstCalorimeterHit> Hits, branchcoll BranchOrder, int DHCALFlag )
 {
 	//DataHandle<edm4hep::ClusterCollection> _currbranchcoll {"Name",Gaudi::DataHandle::Writer, this};
@@ -190,7 +183,6 @@ void ArborToolLCIO::ClusterBuilding( DataHandle<edm4hep::ClusterCollection>& _cu
 		//a_branch.getSubdetectorEnergies(5) = 0 ;
 
 	}
-	cout<<currbranchcoll->size()<<"clusters"<<endl;
 
 }
 
@@ -207,8 +199,7 @@ int ArborToolLCIO::NHScaleV2( std::vector<edm4hep::ConstCalorimeterHit> clu0, in
 	float tmpEn = 0;
 	int NewCellID0 = 0;
 
-	m_decoder = m_geosvc->getDecoder("EcalBarrelCollection");
-	if(!m_decoder) m_decoder = m_geosvc->getDecoder("EcalEndcapsCollection");
+	m_decoder = m_geosvc->getDecoder("ECALBarrel");
 
 
 	std::map <double, float> testIDtoEnergy;
@@ -218,24 +209,12 @@ int ArborToolLCIO::NHScaleV2( std::vector<edm4hep::ConstCalorimeterHit> clu0, in
 		auto hit = clu0[i];
 		auto cellid = hit.getCellID();
 
-		if(_USE_LCIO){
-	      		ID_UTIL::CellIDDecoder<edm4hep::ConstCalorimeterHit> cellIdDecoder(m_encoder_str);
-	      		const std::string idCodingString(m_encoder_str);
-	      		const std::string layerCoding(GetLayerCoding(idCodingString));
-	      		const std::string cellICoding(GetCellICoding(idCodingString));
-	      		const std::string cellJCoding(GetCellJCoding(idCodingString));
 
-			tmpI=cellIdDecoder(&hit)[cellICoding.c_str()]/RatioX;
-			tmpJ=cellIdDecoder(&hit)[cellJCoding.c_str()]/RatioY;
-			tmpK=(cellIdDecoder(&hit)[layerCoding.c_str()]+1)/RatioZ;
-		}
-
-		else{
 		tmpI = m_decoder->get(cellid, "cellX")/RatioX;
 		tmpJ = m_decoder->get(cellid, "cellY")/RatioY;
 		tmpK = (m_decoder->get(cellid, "layer")+1)/RatioZ;
-		}
 		tmpEn = hit.getEnergy();
+
 		NewCellID0 = (tmpK<<24) + (tmpJ<<12) + tmpI;
 
 		if(testIDtoEnergy.find(NewCellID0) == testIDtoEnergy.end() )
@@ -285,9 +264,7 @@ int ArborToolLCIO::NHScaleV3( edm4hep::ConstCluster clu0, int RatioX, int RatioY
 	int NewCellID0 = 0;
 	int NewCellID1 = 0;
 	//m_geosvc=service<IGeomSvc>("GeomSvc");	
-
-	m_decoder = m_geosvc->getDecoder("EcalBarrelCollection");
-	if(!m_decoder) m_decoder = m_geosvc->getDecoder("EcalEndcapsCollection");
+	m_decoder = m_geosvc->getDecoder("ECALBarrel");
 
 	std::map <double, float> testIDtoEnergy;
 	double testlongID = 0;
@@ -297,23 +274,9 @@ int ArborToolLCIO::NHScaleV3( edm4hep::ConstCluster clu0, int RatioX, int RatioY
 		auto hit = clu0.getHits(i);
 		auto cellid = hit.getCellID();
 
-		if(_USE_LCIO){
-	      		ID_UTIL::CellIDDecoder<edm4hep::ConstCalorimeterHit> cellIdDecoder(m_encoder_str);
-	      		const std::string idCodingString(m_encoder_str);
-	      		const std::string layerCoding(GetLayerCoding(idCodingString));
-	      		const std::string cellICoding(GetCellICoding(idCodingString));
-	      		const std::string cellJCoding(GetCellJCoding(idCodingString));
-
-			tmpI=cellIdDecoder(&hit)[cellICoding.c_str()]/RatioX;
-			tmpJ=cellIdDecoder(&hit)[cellJCoding.c_str()]/RatioY;
-			tmpK=(cellIdDecoder(&hit)[layerCoding.c_str()]+1)/RatioZ;
-		}
-
-		else{
 		tmpI = m_decoder->get(cellid, "cellX")/RatioX;
 		tmpJ = m_decoder->get(cellid, "cellY")/RatioY;
 		tmpK = (m_decoder->get(cellid, "layer")+1)/RatioZ;
-		}
 		tmpEn = hit.getEnergy();
 
 		NewCellID0 = (tmpK<<24) + (tmpJ<<12) + tmpI;
@@ -492,38 +455,7 @@ std::vector<edm4hep::ConstCluster> ArborToolLCIO::CollClusterVec(const edm4hep::
 }
 
 
-void ArborToolLCIO::NaiveCluConst(edm4hep::ConstCluster a0_clu,edm4hep::Cluster b0_clu)
-{
-	b0_clu.setPosition(a0_clu.getPosition());
-	b0_clu.setEnergy(a0_clu.getEnergy());
-	int NCaloHit = a0_clu.hits_size();
-	float HitEn = 0; 
-	float SubDEn[6] = {0, 0, 0, 0, 0, 0};
-
-	for(int t0 = 0; t0 < NCaloHit; t0++)
-	{
-		auto a0_hit = a0_clu.getHits(t0);
-		b0_clu.addToHits(a0_hit);
-		HitEn = a0_hit.getEnergy();
-		if(fabs(HitEn - DHCALCalibrationConstant) < 1.0E-6)
-		{
-			SubDEn[1] += HitEn;
-		}
-		else
-		{	
-			SubDEn[0] += HitEn;
-		}
-	}
-
-	for(int i = 0; i < 6; i++)
-	{
-		b0_clu.addToSubdetectorEnergies(SubDEn[i]);
-	}
-	
-}
-
-
-edm4hep::Cluster ArborToolLCIO::NaiveCluImpl(edm4hep::ConstCluster a0_clu)
+edm4hep::Cluster NaiveCluImpl(edm4hep::ConstCluster a0_clu)
 {
 	edm4hep::Cluster b0_clu;
 	b0_clu.setPosition(a0_clu.getPosition());
@@ -659,139 +591,6 @@ std::vector<edm4hep::Cluster> ArborToolLCIO::ClusterHitAbsorbtion( std::vector<e
 }
 
 
-void ArborToolLCIO::NaiveMergeCluConst(std::vector<edm4hep::ConstCluster> inputCluVec,edm4hep::Cluster MergedClu)
-{
-
-	int NClu = inputCluVec.size();
-	float SeedDis = 1E9; 
-	float MaxDis = 0; 
-	float MergedCluEnergy = 0; 
-	float HitEn = 0; 
-	float SubDEn[6] = {0, 0, 0, 0, 0, 0};
-
-	TVector3 CurrSeedPos, SeedPos, CurrHitPos, CluEndPos, CluRefDir;	//Seed Depth... CoG Comp...
-
-	for(int i = 0; i < NClu; i++)
-	{
-		auto a_Clu = inputCluVec[i];
-		CurrSeedPos =  TVector3(a_Clu.getPosition().x,a_Clu.getPosition().y,a_Clu.getPosition().z);
-		MergedCluEnergy += a_Clu.getEnergy();
-
-		if(CurrSeedPos.Mag() < SeedDis)
-		{
-			SeedPos = CurrSeedPos; 
-			SeedDis = CurrSeedPos.Mag();
-		}
-
-		int CurrCluSize = a_Clu.hits_size();
-
-		for(int j = 0; j < CurrCluSize; j++)
-		{
-			auto a_hit = a_Clu.getHits(j);
-			MergedClu.addToHits(a_hit);
-			CurrHitPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);
-			HitEn = a_hit.getEnergy();
-			if(fabs(HitEn - DHCALCalibrationConstant) < 1.0E-6)	// ECAL, HCAL, Should use better criteria. 
-			{
-				SubDEn[1] += HitEn; 
-			}
-			else
-			{
-				SubDEn[0] += HitEn; 
-			}
-
-			if(CurrHitPos.Mag() > MaxDis)
-			{
-				MaxDis = CurrHitPos.Mag();
-				CluEndPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);	
-			}
-		}
-	}
-	CluRefDir = (CluEndPos - SeedPos);
-
-	float ClusterSeedPos[3] = {float(SeedPos.X()), float(SeedPos.Y()), float(SeedPos.Z())};
-	MergedClu.setPosition(ClusterSeedPos);
-	MergedClu.setEnergy(MergedCluEnergy);
-	MergedClu.setITheta( CluRefDir.Theta() );
-	MergedClu.setPhi( CluRefDir.Phi() );
-
-	//MergedClu.subdetectorEnergies().resize(6) ;
-	for(int i = 0; i < 6; i++)
-	{
-	//	MergedClu.subdetectorEnergies()[i] = SubDEn[i];
-		MergedClu.addToSubdetectorEnergies(SubDEn[i]);
-	}
-
-}
-edm4hep::Cluster ArborToolLCIO::NaiveMergeClu(std::vector<edm4hep::ConstCluster> inputCluVec)
-{
-	edm4hep::Cluster MergedClu;
-
-	int NClu = inputCluVec.size();
-	float SeedDis = 1E9; 
-	float MaxDis = 0; 
-	float MergedCluEnergy = 0; 
-	float HitEn = 0; 
-	float SubDEn[6] = {0, 0, 0, 0, 0, 0};
-
-	TVector3 CurrSeedPos, SeedPos, CurrHitPos, CluEndPos, CluRefDir;	//Seed Depth... CoG Comp...
-
-	for(int i = 0; i < NClu; i++)
-	{
-		auto a_Clu = inputCluVec[i];
-		CurrSeedPos =  TVector3(a_Clu.getPosition().x,a_Clu.getPosition().y,a_Clu.getPosition().z);
-		MergedCluEnergy += a_Clu.getEnergy();
-
-		if(CurrSeedPos.Mag() < SeedDis)
-		{
-			SeedPos = CurrSeedPos; 
-			SeedDis = CurrSeedPos.Mag();
-		}
-
-		int CurrCluSize = a_Clu.hits_size();
-
-		for(int j = 0; j < CurrCluSize; j++)
-		{
-			auto a_hit = a_Clu.getHits(j);
-			MergedClu.addToHits(a_hit);
-			CurrHitPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);
-			HitEn = a_hit.getEnergy();
-			if(fabs(HitEn - DHCALCalibrationConstant) < 1.0E-6)	// ECAL, HCAL, Should use better criteria. 
-			{
-				SubDEn[1] += HitEn; 
-			}
-			else
-			{
-				SubDEn[0] += HitEn; 
-			}
-
-			if(CurrHitPos.Mag() > MaxDis)
-			{
-				MaxDis = CurrHitPos.Mag();
-				CluEndPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);	
-			}
-		}
-	}
-	CluRefDir = (CluEndPos - SeedPos);
-
-	float ClusterSeedPos[3] = {float(SeedPos.X()), float(SeedPos.Y()), float(SeedPos.Z())};
-	MergedClu.setPosition(ClusterSeedPos);
-	MergedClu.setEnergy(MergedCluEnergy);
-	MergedClu.setITheta( CluRefDir.Theta() );
-	MergedClu.setPhi( CluRefDir.Phi() );
-
-	//MergedClu.subdetectorEnergies().resize(6) ;
-	for(int i = 0; i < 6; i++)
-	{
-	//	MergedClu.subdetectorEnergies()[i] = SubDEn[i];
-		MergedClu.addToSubdetectorEnergies(SubDEn[i]);
-	}
-
-	return MergedClu;
-}
-
-
-
 std::vector<edm4hep::ConstCluster> ArborToolLCIO::ClusterAbsorbtion( std::vector<edm4hep::ConstCluster> MainClusters, std::vector<edm4hep::ConstCluster> FragClusters, float DisThreshold, float DepthSlope )	//ProjectiveDis
 {
 	std::vector<edm4hep::ConstCluster> outputClusterVec;
@@ -854,7 +653,6 @@ std::vector<edm4hep::ConstCluster> ArborToolLCIO::ClusterAbsorbtion( std::vector
 			}
 		}
 		auto a_mergedfrag_core = NaiveMergeClu(tomerge_clu);
-		edm4hep::ConstCluster a_mergedfrag_coreCon=a_mergedfrag_core;
 		outputClusterVec.push_back(a_mergedfrag_core);
 	}
 
@@ -863,8 +661,8 @@ std::vector<edm4hep::ConstCluster> ArborToolLCIO::ClusterAbsorbtion( std::vector
 		if(TouchedFrag.find(i1) == TouchedFrag.end())
 		{
 			auto a_frag = FragClusters[i1];
-			//auto a_isofrag = NaiveCluImpl(a_frag);;
-			outputClusterVec.push_back(a_frag);
+			auto a_isofrag = NaiveCluImpl(a_frag);;
+			outputClusterVec.push_back(a_isofrag);
 		}
 	}
 
@@ -964,6 +762,75 @@ edm4hep::ClusterCollection* ArborToolLCIO::ClusterVecMerge( std::vector<edm4hep:
 	return mergedbranches;
 
 }
+
+edm4hep::Cluster ArborToolLCIO::NaiveMergeClu(std::vector<edm4hep::ConstCluster> inputCluVec)
+{
+	edm4hep::Cluster MergedClu;
+
+	int NClu = inputCluVec.size();
+	int CurrCluSize = 0; 
+	float SeedDis = 1E9; 
+	float MaxDis = 0; 
+	float MergedCluEnergy = 0; 
+	float HitEn = 0; 
+	float SubDEn[6] = {0, 0, 0, 0, 0, 0};
+
+	TVector3 CurrSeedPos, SeedPos, CurrHitPos, CluEndPos, CluRefDir;	//Seed Depth... CoG Comp...
+
+	for(int i = 0; i < NClu; i++)
+	{
+		auto a_Clu = inputCluVec[i];
+		CurrSeedPos =  TVector3(a_Clu.getPosition().x,a_Clu.getPosition().y,a_Clu.getPosition().z);
+		MergedCluEnergy += a_Clu.getEnergy();
+
+		if(CurrSeedPos.Mag() < SeedDis)
+		{
+			SeedPos = CurrSeedPos; 
+			SeedDis = CurrSeedPos.Mag();
+		}
+
+		CurrCluSize = a_Clu.hits_size();
+
+		for(int j = 0; j < CurrCluSize; j++)
+		{
+			auto a_hit = a_Clu.getHits(j);
+			MergedClu.addToHits(a_hit);
+			CurrHitPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);
+			HitEn = a_hit.getEnergy();
+			if(fabs(HitEn - DHCALCalibrationConstant) < 1.0E-6)	// ECAL, HCAL, Should use better criteria. 
+			{
+				SubDEn[1] += HitEn; 
+			}
+			else
+			{
+				SubDEn[0] += HitEn; 
+			}
+
+			if(CurrHitPos.Mag() > MaxDis)
+			{
+				MaxDis = CurrHitPos.Mag();
+				CluEndPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);	
+			}
+		}
+	}
+	CluRefDir = (CluEndPos - SeedPos);
+
+	float ClusterSeedPos[3] = {float(SeedPos.X()), float(SeedPos.Y()), float(SeedPos.Z())};
+	MergedClu.setPosition(ClusterSeedPos);
+	MergedClu.setEnergy(MergedCluEnergy);
+	MergedClu.setITheta( CluRefDir.Theta() );
+	MergedClu.setPhi( CluRefDir.Phi() );
+
+	//MergedClu.subdetectorEnergies().resize(6) ;
+	for(int i = 0; i < 6; i++)
+	{
+	//	MergedClu.subdetectorEnergies()[i] = SubDEn[i];
+		MergedClu.addToSubdetectorEnergies(SubDEn[i]);
+	}
+
+	return MergedClu;
+}
+
 int ArborToolLCIO::JointsBetweenBush(edm4hep::ConstCluster a_Clu, edm4hep::ConstCluster b_Clu, float CellSize)
 {
 	int NJoint = 0; 
@@ -1002,7 +869,7 @@ float* ArborToolLCIO::SimpleDisTrackClu( edm4hep::ConstTrack a_trk, edm4hep::Con
        	Distance[2]	= 1.0E9;
 	float minDis = 1.0E9;
 	float BushDist[3] = {0, 0 ,0};
-	HelixClassD * a_Helix = new HelixClassD();
+	HelixClass * a_Helix = new HelixClass();
 	//float refPoint[3] = a_Helix->getReferencePoint();
 	a_Helix->Initialize_Canonical(a_trk.getTrackStates(0).phi, a_trk.getTrackStates(0).D0, a_trk.getTrackStates(0).Z0, a_trk.getTrackStates(0).omega, a_trk.getTrackStates(0).tanLambda, BField);
 	int NCaloHits = a_clu.hits_size();
@@ -1030,7 +897,7 @@ float ArborToolLCIO::SimpleBushTimeTrackClu(edm4hep::ConstTrack a_trk, edm4hep::
         float Distance = 1.0E9;
         float Time = 0;
         float BushDist[3] = {0, 0 ,0};
-        HelixClassD * a_Helix = new HelixClassD();
+        HelixClass * a_Helix = new HelixClass();
 	a_Helix->Initialize_Canonical(a_trk.getTrackStates(0).phi, a_trk.getTrackStates(0).D0, a_trk.getTrackStates(0).Z0, a_trk.getTrackStates(0).omega, a_trk.getTrackStates(0).tanLambda, BField);
         int NCaloHits = a_clu.hits_size();
 
@@ -1056,7 +923,7 @@ int ArborToolLCIO::SimpleBushNC(edm4hep::ConstTrack  a_trk, edm4hep::ConstCluste
 	//float Time = 0; 
 	int NC = 0;
 	float BushDist[3] = {0, 0 ,0};
-	HelixClassD * a_Helix = new HelixClassD();
+	HelixClass * a_Helix = new HelixClass();
 	a_Helix->Initialize_Canonical(a_trk.getTrackStates(0).phi, a_trk.getTrackStates(0).D0, a_trk.getTrackStates(0).Z0, a_trk.getTrackStates(0).omega, a_trk.getTrackStates(0).tanLambda, BField);
 	int NCaloHits = a_clu.hits_size();
 
@@ -1102,7 +969,7 @@ int ArborToolLCIO::ClusterFlag(edm4hep::ConstCluster a_tree, edm4hep::ConstTrack
 
 	const float mass = 0.139;       //Pion Mass
 
-	HelixClassD * TrkInit_Helix = new HelixClassD();
+	HelixClass * TrkInit_Helix = new HelixClass();
 	TrkInit_Helix->Initialize_Canonical(a_trk.getTrackStates(0).phi, a_trk.getTrackStates(0).D0, a_trk.getTrackStates(0).Z0, a_trk.getTrackStates(0).omega, a_trk.getTrackStates(0).tanLambda, BField);
 	float TrackEn = mass*mass;
 
@@ -1185,7 +1052,7 @@ int ArborToolLCIO::ClusterFlag(edm4hep::ConstCluster a_tree, edm4hep::ConstTrack
 		Ecalf10hits.clear();
 
 
-		HelixClassD * currHelix = new HelixClassD();
+		HelixClass * currHelix = new HelixClass();
 		currHelix->Initialize_Canonical(a_trk.getTrackStates(0).phi, a_trk.getTrackStates(0).D0, a_trk.getTrackStates(0).Z0, a_trk.getTrackStates(0).omega, a_trk.getTrackStates(0).tanLambda, BField);
 		float BushDist[3] = {0, 0, 0};
 		float BushTime = 0;
@@ -1193,51 +1060,6 @@ int ArborToolLCIO::ClusterFlag(edm4hep::ConstCluster a_tree, edm4hep::ConstTrack
 		std::vector<float> hitTheta;
 		hitTheta.clear();
 
-		int ntrkhits=a_trk.trackerHits_size();
-		int chose_high = int(0.3*ntrkhits);
-		float cen_high = 999.;
-		int maxhit = 99999;
-		float totaled = 0.;
-		for(int ihit = 0; ihit < chose_high;ihit++){
-			maxhit = ihit;
-			auto hiti=a_trk.getTrackerHits(maxhit);
-			auto hiti1=a_trk.getTrackerHits(maxhit+1);
-			TVector3 hitposi = TVector3(hiti.getPosition().x,hiti.getPosition().y,hiti.getPosition().z);
-			TVector3 lastposi = TVector3(hiti1.getPosition().x,hiti1.getPosition().y,hiti1.getPosition().z);
-			float cudisi = (hitposi-lastposi).Mag();
-			float maxdedx = hiti.getEDep()/cudisi;
-			for(int jhit = ihit+1; jhit<ntrkhits-1; jhit++){
-				auto hitj=a_trk.getTrackerHits(jhit);
-				auto hitj1=a_trk.getTrackerHits(jhit+1);
-				TVector3 hitposj = TVector3(hitj.getPosition().x,hitj.getPosition().y,hitj.getPosition().z);
-				TVector3 lastposj = TVector3(hitj1.getPosition().x,hitj1.getPosition().y,hitj1.getPosition().z);
-				float cudisj = (hitposj-lastposj).Mag();
-				if(hitj.getEDep()/cudisj>maxdedx&&hitj.getEDep()/cudisj<cen_high){
-					maxhit = jhit;
-					maxdedx = hitj.getEDep()/cudisj;
-				}
-			}
-			cen_high = maxdedx;
-		}
-		int nhiteff = 0;
-		for(int ihit = 0; ihit < ntrkhits-1; ihit++)
-		{
-			auto hit=a_trk.getTrackerHits(ihit);
-			float mindis = 999.;
-			auto last=a_trk.getTrackerHits(ihit+1);
-			TVector3 hitpos = TVector3(hit.getPosition().x,hit.getPosition().y,hit.getPosition().z);
-			TVector3 lastpos = TVector3(last.getPosition().x,last.getPosition().y,last.getPosition().z);
-			float cudis = (hitpos-lastpos).Mag();
-			mindis= cudis;
-			if(hit.getEDep()/mindis<cen_high){
-				float dedx = hit.getEDep()/mindis;
-				totaled += dedx;
-				nhiteff ++;
-			}
-		}
-		dEdx = totaled/nhiteff;
-
-		//dEdx=a_trk.getDEdx();
 		for(unsigned int j1 = 0; j1 < a_tree.hits_size(); j1++)
 		{
 			auto a_hit = a_tree.getHits(j1);
@@ -1289,18 +1111,7 @@ int ArborToolLCIO::ClusterFlag(edm4hep::ConstCluster a_tree, edm4hep::ConstTrack
 			auto a_hit = a_tree.getHits(s1);
 			allhits.push_back(a_hit);
 			auto cellid= a_hit.getCellID();
-			int NLayer;
-
-			if(_USE_LCIO){
-		      		ID_UTIL::CellIDDecoder<edm4hep::ConstCalorimeterHit> cellIdDecoder(m_encoder_str);
-		      		const std::string idCodingString(m_encoder_str);
-		      		const std::string layerCoding(GetLayerCoding(idCodingString));
-				NLayer=cellIdDecoder(&a_hit)[layerCoding.c_str()]+1;
-			}
-	
-			else{
-				NLayer =  m_decoder->get(cellid, "layer");
-			}
+			int NLayer =  m_decoder->get(cellid, "layer");
 
 			HitPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);
 
@@ -1631,23 +1442,8 @@ int ArborToolLCIO::ActiveLayers(  std::vector<edm4hep::ConstCalorimeterHit> clu 
 	{
 		auto hit = clu[i];
 		auto cellid= hit.getCellID();
-
-
-		if(_USE_LCIO){
-	      		ID_UTIL::CellIDDecoder<edm4hep::ConstCalorimeterHit> cellIdDecoder(m_encoder_str);
-	      		const std::string idCodingString(m_encoder_str);
-	      		const std::string layerCoding(GetLayerCoding(idCodingString));
-	      		const std::string staveCoding(GetStaveCoding(idCodingString));
-
-
-			tmpK=cellIdDecoder(&hit)[layerCoding.c_str()]+1;
-			tmpS=cellIdDecoder(&hit)[staveCoding.c_str()]+1;
-		}
-
-		else{
-			tmpK = m_decoder->get(cellid, "layer")+1 ;
-			tmpS = m_decoder->get(cellid, "stave")+1 ;
-		}
+		tmpK = m_decoder->get(cellid, "layer")+1 ;
+		tmpS = m_decoder->get(cellid, "stave")+1 ;
 		// cout<<"tmpK "<<tmpK<<endl; 
 		tmpID = tmpS * 50 + tmpK;
 
@@ -1781,18 +1577,7 @@ int ArborToolLCIO::ClusterFlag1st(edm4hep::ConstCluster a_tree)
 		auto a_hit = a_tree.getHits(s1);
 		allhits.push_back(a_hit);
 		auto cellid = a_hit.getCellID();
-
-		int NLayer;
-		if(_USE_LCIO){
-	      		ID_UTIL::CellIDDecoder<edm4hep::ConstCalorimeterHit> cellIdDecoder(m_encoder_str);
-	      		const std::string idCodingString(m_encoder_str);
-	      		const std::string layerCoding(GetLayerCoding(idCodingString));
-			NLayer=cellIdDecoder(&a_hit)[layerCoding.c_str()]+1;
-		}
-
-		else{
-			NLayer = m_decoder->get(cellid, "layer");
-		}
+		int NLayer = m_decoder->get(cellid, "layer");
 		float tmpHitEn = a_hit.getEnergy();
 		HitPos = TVector3(a_hit.getPosition().x,a_hit.getPosition().y,a_hit.getPosition().z);
 
@@ -1992,19 +1777,7 @@ float ArborToolLCIO::EMClusterEE( edm4hep::ConstCluster inputCluster )
 	{
 		auto a_hit = inputCluster.getHits(s1);
 		auto cellid=a_hit.getCellID();
-
-
-		int NLayer;
-		if(_USE_LCIO){
-	      		ID_UTIL::CellIDDecoder<edm4hep::ConstCalorimeterHit> cellIdDecoder(m_encoder_str);
-	      		const std::string idCodingString(m_encoder_str);
-	      		const std::string layerCoding(GetLayerCoding(idCodingString));
-			NLayer=cellIdDecoder(&a_hit)[layerCoding.c_str()]+1;
-		}
-
-		else{
-			NLayer = m_decoder->get(cellid, "layer");
-		}
+		int NLayer = m_decoder->get(cellid, "layer");
 		if(NLayer > 20){
 			if (NLayer%2 ==0){
 				ArNhite10 ++;
@@ -2069,7 +1842,7 @@ float ArborToolLCIO::EMClusterEE( edm4hep::ConstCluster inputCluster )
 	return EMC;
 }
 
-std::vector<float> ArborToolLCIO::ClusterTime(edm4hep::ConstCluster inputCluster)
+std::vector<float> ClusterTime(edm4hep::ConstCluster inputCluster)
 {
 	std::vector<float> CluTimeVector; 
 	CluTimeVector.clear();
@@ -2180,63 +1953,3 @@ std::vector<float> ArborToolLCIO::ClusterTime(edm4hep::ConstCluster inputCluster
 
 	return CluTimeVector; 
 }
-
-
-std::string ArborToolLCIO::GetStaveCoding(const std::string &encodingString) const
-{
-     if (encodingString.find("stave") != std::string::npos)
-	  return std::string("stave");
-
-     if (encodingString.find("S-1") != std::string::npos)
-	  return std::string("S-1");
-
-     if (encodingString.find("S") != std::string::npos)
-	  return std::string("S");
-
-     return std::string("unknown_stave_encoding");
-}
-
-std::string ArborToolLCIO::GetLayerCoding(const std::string &encodingString) const
-{
-     if (encodingString.find("layer") != std::string::npos)
-	  return std::string("layer");
-
-     if (encodingString.find("K-1") != std::string::npos)
-	  return std::string("K-1");
-
-     if (encodingString.find("K") != std::string::npos)
-	  return std::string("K");
-
-     return std::string("unknown_layer_encoding");
-}
-
-
-std::string ArborToolLCIO::GetCellICoding(const std::string &encodingString) const
-{
-     if (encodingString.find("cell_x") != std::string::npos)
-	  return std::string("cell_x");
-
-     if (encodingString.find("I-1") != std::string::npos)
-	  return std::string("I-1");
-
-     if (encodingString.find("I") != std::string::npos)
-	  return std::string("I");
-
-     return std::string("unknown_cellI_encoding");
-}
-
-std::string ArborToolLCIO::GetCellJCoding(const std::string &encodingString) const
-{
-     if (encodingString.find("cell_y") != std::string::npos)
-	  return std::string("cell_y");
-
-     if (encodingString.find("J-1") != std::string::npos)
-	  return std::string("J-1");
-
-     if (encodingString.find("J") != std::string::npos)
-	  return std::string("J");
-
-     return std::string("unknown_cellJ_encoding");
-}
-
-

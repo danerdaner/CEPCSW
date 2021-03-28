@@ -77,6 +77,7 @@ class MarlinArbor  : public GaudiAlgorithm
 
      Gaudi::Property<std::vector<std::string>> m_ecalReadoutNames{this, "ECALReadOutNames", {"EcalBarrelCollection", "EcalEndcapsCollection","EcalEndcapRingCollection"}, "Name of readouts"};
      Gaudi::Property<std::vector<std::string>> m_hcalReadoutNames{this, "HCALReadOutNames", {"HcalBarrelCollection", "HcalEndcapsCollection","HcalEndcapRingCollection"}, "Name of readouts"};
+     Gaudi::Property<bool>   m_readLCIO{this, "ReadLCIO", true, "Read sim file with LCIO"};
      std::map<std::string, std::string> m_col_readout_map;
 
 	     std::vector<CaloType*> _ecalCollections;
@@ -108,6 +109,7 @@ class MarlinArbor  : public GaudiAlgorithm
 		bool _FlagUseTrackerEndHit; 
 		std::string m_encoder_str;
 
+		     DataHandle<edm4hep::MCRecoCaloAssociationCollection> _caloTruthLinkCollection{"MCRecoCaloAssociationCollection", Gaudi::DataHandle::Reader, this};
 		DataHandle<edm4hep::ClusterCollection>   branchCol{"EHBushes",Gaudi::DataHandle::Writer, this};
 		DataHandle<edm4hep::CalorimeterHitCollection>   m_isohitcol{"IsoHits",Gaudi::DataHandle::Writer, this};
 		TH2F *_h1, *_h2, *_h7; 

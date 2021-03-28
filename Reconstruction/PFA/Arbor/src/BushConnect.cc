@@ -503,7 +503,6 @@ void BushConnect::TagCore()
 	FCMap_Track_CHCore.clear();
 	FCMap_Track_CHCore_new.clear();
 
-	Clu_Depth.clear();
 
 	for(int s0 = 0; s0 < NTrk; s0++)
 	{
@@ -714,6 +713,7 @@ void BushConnect::ParticleReco()
 	auto ChargedCore = m_chargeparticleCol.get(); 
 	int NChargedObj = ChargedCore->size();
 	int NNeutralCluster = non_chargedclustercore.size();
+
 	double DisMatrix_Core_Neutral[NChargedObj][NNeutralCluster][2];		//Define different types of distances; 
 
 	float CluDepth = 0;
@@ -780,7 +780,7 @@ void BushConnect::ParticleReco()
 
 		for(int j = 0; j < NNeutralCluster; j++)
 		{
-			auto a_NeCandiClu = non_chargedclustercore[j];
+			edm4hep::ConstCluster a_NeCandiClu = non_chargedclustercore[j];
 			float NeCandEn = a_NeCandiClu.getEnergy(); 
 			CluPos = TVector3(a_NeCandiClu.getPosition().x,a_NeCandiClu.getPosition().y,a_NeCandiClu.getPosition().z);
 			CluDepth = DisSeedSurface(CluPos);
@@ -1317,6 +1317,24 @@ StatusCode BushConnect::execute()
 		BushConnect::TagCore(  );		
 		BushConnect::ParticleReco(  );
 		}catch(GaudiException &e){}
+		Clu_Depth.clear();
+		non_chargedclustercore.clear();		//all clusters besides charged cluster core
+		
+		MCPTrack_Type.clear();
+		Track_Energy.clear();
+		Track_Type.clear();
+		Track_Theta.clear();
+		Track_EndPoint.clear();
+		Track_P3.clear();
+		TrackStartPoint.clear();
+		SortedTracks.clear();
+		ChCoreID.clear();
+		chargedclustercore.clear();
+		selfmergedcluster.clear();
+		ClusterType_1stID.clear();
+		CluFD.clear();
+		CluT0.clear();
+		CluCoG.clear();
 	return StatusCode::SUCCESS;
 }
 

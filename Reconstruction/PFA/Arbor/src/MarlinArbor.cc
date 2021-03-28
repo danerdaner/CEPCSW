@@ -16,6 +16,7 @@
 #include "edm4hep/ClusterCollection.h"
 #include "edm4hep/SimCalorimeterHitCollection.h"
 #include "edm4hep/MCRecoCaloAssociationCollection.h"
+#include "edm4hep/MCRecoCaloAssociation.h"
 #include "edm4hep/MCParticleCollection.h"
 
 #include "cellIDDecoder.h"
@@ -63,10 +64,11 @@ MarlinArbor::MarlinArbor(const std::string& name, ISvcLocator* svcLoc)
 StatusCode MarlinArbor::initialize() {
 
 	
-	_cepc_thresholds.push_back(10);
+     m_encoder_str = "M:3,S-1:3,I:9,J:9,K-1:6";
+	_cepc_thresholds.push_back(20);
 	_cepc_thresholds.push_back(90);
 	_cepc_thresholds.push_back(50);
-	_cepc_thresholds.push_back(7.5);
+	_cepc_thresholds.push_back(11);
 
      m_geosvc = service<IGeomSvc>("GeomSvc");
 
@@ -87,6 +89,7 @@ StatusCode MarlinArbor::initialize() {
 	  _hcalCollections.push_back( new CaloType(hcal, Gaudi::DataHandle::Reader, this) );
 	  _calCollections.push_back( new CaloType(hcal, Gaudi::DataHandle::Reader, this) );
      }
+
 	return GaudiAlgorithm::initialize();
 }
 
@@ -136,30 +139,30 @@ StatusCode MarlinArbor::execute()
 	TVector3 TrkEndPointPos; 
 	std::vector<edm4hep::ConstCalorimeterHit> IsoHits;
 
+	auto HitLink=_caloTruthLinkCollection.get();
 	for(unsigned int i1 = 0; i1 < _calCollections.size(); i1++)
 	{
 
-		std::cout<<i1<<"th collection"<<m_col_readout_map[m_ecalColNames.value().at(i1)]<<std::endl;
-		std::string tmp_readout;
+		std::cout<<i1<<"th collection"<<endl;//m_col_readout_map[m_ecalColNames.value().at(i1)]<<std::endl;
 		
-	      if(i1<2)tmp_readout = m_col_readout_map[m_ecalColNames.value().at(i1)];
+		std::string tmp_readout;
+	      if(i1<3)tmp_readout = m_col_readout_map[m_ecalColNames.value().at(i1)];
 	      else
-		      tmp_readout = m_col_readout_map[m_hcalColNames.value().at(i1-2)];
+		      tmp_readout = m_col_readout_map[m_hcalColNames.value().at(i1-3)];
 
-	      std::cout<<tmp_readout<<std::endl;
+	      std::cout<<"MarlinArbor:"<<tmp_readout<<std::endl;
               // get the DD4hep readout
-              m_decoder = m_geosvc->getDecoder(tmp_readout);
 			KShift = 0;
 			SubDId = -1; 
 
-			if( i1 < _EcalCalCollections.size() )
+			if( i1 < m_ecalColNames.size() )
 				SubDId = 1; 
-			else if( i1 < _EcalCalCollections.size() + _HcalCalCollections.size() )
+			else if( i1 < m_ecalColNames.size() + m_hcalColNames.size() )
 				SubDId = 2;
 			else
 				SubDId = 3; 
 
-			if(i1 >  _EcalCalCollections.size() - 1)
+			if(i1 >  m_ecalColNames.size() - 1)
 				KShift = 100; 
 			else if( i1 == _calCollections.size() - 2)	//HCAL Ring
 				KShift = 50;
@@ -169,12 +172,28 @@ StatusCode MarlinArbor::execute()
 			//int NHitsCurrCol = CaloHitColl->getNumberOfElements();
 			//CellIDDecoder<CalorimeterHit> idDecoder(CaloHitColl);
 			for (auto a_hit: *CaloHitColl){
-		       		currHitPos =  TVector3(a_hit.getPosition().x, a_hit.getPosition().y, a_hit.getPosition().z);
+
+	
+	      			 ID_UTIL::CellIDDecoder<edm4hep::CalorimeterHit> cellIdDecoder(m_encoder_str);
+	      			 const std::string layerCodingString(m_encoder_str);
+	      			 const std::string staveCodingString(m_encoder_str);
+	      			 const std::string layerCoding(m_ArborToolLCIO->GetLayerCoding(layerCodingString));
+	      			 const std::string staveCoding(m_ArborToolLCIO->GetStaveCoding(staveCodingString));
+	      			if(!m_readLCIO)m_decoder = m_geosvc->getDecoder(tmp_readout);
+	      
+			       		currHitPos =  TVector3(a_hit.getPosition().x, a_hit.getPosition().y, a_hit.getPosition().z);
 		       		Depth = DisSeedSurface(currHitPos);
 
-				auto cellid = a_hit.getCellID();
-			       LayerNum = m_decoder->get(cellid, "layer")+ KShift;
-			       StaveNum=m_decoder->get(cellid, "stave");
+				if(m_readLCIO){
+					LayerNum=cellIdDecoder(&a_hit)[layerCoding.c_str()] + 1 ;
+					StaveNum=cellIdDecoder(&a_hit)[staveCoding.c_str()] + 1 ;
+				}
+		      
+				else{
+					auto cellid = a_hit.getCellID();
+				       LayerNum = m_decoder->get(cellid, "layer")+ KShift;
+				       StaveNum=m_decoder->get(cellid, "stave");
+				}
 		       		
 		       		if(SubDId!=2 ){
 
@@ -192,7 +211,6 @@ StatusCode MarlinArbor::execute()
 			// cout<<i1<<"  Stat  "<<SubDId<<" ~~~ "<<inputABHit.size()<<endl; 
 
 	}
-	//cout<<"hit size"<<inputHits.size()<<endl;
 
 	Sequence = Arbor(inputABHit, _cepc_thresholds);   
 

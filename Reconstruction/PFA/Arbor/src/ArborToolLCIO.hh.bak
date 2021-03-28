@@ -31,7 +31,6 @@
 #include "GaudiKernel/NTuple.h"
 #include "GaudiKernel/MsgStream.h"
 #include "ArborTool.h"
-#include "HelixClassD.hh"
 
 class CollectionMaps
 {
@@ -50,14 +49,13 @@ public:
 
 class ArborToolLCIO  : public GaudiAlgorithm
 {
+	  std::map<std::string, DataObjectHandleBase*> m_dataHandles;
 	public:
 		ArborToolLCIO(const std::string& name, ISvcLocator* svcLoc);
 		//ArborToolLCIO(ISvcLocator* svcLoc);
 		~ArborToolLCIO();
 		typedef DataHandle<edm4hep::Cluster>  ClusterType;
 
-
-		void Clean(); 
 	void ClusterBuilding(DataHandle<edm4hep::ClusterCollection>& _currbranchcoll, std::vector<edm4hep::ConstCalorimeterHit> Hits, branchcoll BranchOrder, int DHCALFlag);
 	
 	float ClusterT0(edm4hep::ConstCluster a_Clu);
@@ -89,7 +87,6 @@ class ArborToolLCIO  : public GaudiAlgorithm
 	edm4hep::ClusterCollection* ClusterVecColl( std::vector<edm4hep::ConstCluster> inputClusters, DataHandle<edm4hep::ClusterCollection>& m_clucol);
 
 	edm4hep::Cluster NaiveCluImpl(edm4hep::ConstCluster a0_clu);
-	void NaiveCluConst(edm4hep::ConstCluster a0_clu, edm4hep::Cluster);
 	
 	std::vector<edm4hep::ConstCluster> CollClusterVec(const edm4hep::ClusterCollection * input_coll );
 	
@@ -97,11 +94,9 @@ class ArborToolLCIO  : public GaudiAlgorithm
 	
 	std::vector<edm4hep::Cluster> ClusterHitAbsorbtion( std::vector<edm4hep::ConstCluster> MainClusters, std::vector<edm4hep::ConstCalorimeterHit> IsoHits, float DisThreshold );
 	
-	edm4hep::Cluster NaiveMergeClu(std::vector<edm4hep::ConstCluster> inputCluVec);
-
-	void NaiveMergeCluConst(std::vector<edm4hep::ConstCluster> inputCluVec,edm4hep::Cluster MergedClu);
 	std::vector<edm4hep::ConstCluster> ClusterAbsorbtion( std::vector<edm4hep::ConstCluster> MainClusters, std::vector<edm4hep::ConstCluster> FragClusters, float thresholds, float DepthSlope );
 	
+	edm4hep::Cluster NaiveMergeClu(std::vector<edm4hep::ConstCluster> inputCluVec);
 	
 	int JointsBetweenBush(edm4hep::ConstCluster a_Clu, edm4hep::ConstCluster b_Clu, float CellSize);
 	
@@ -118,16 +113,11 @@ class ArborToolLCIO  : public GaudiAlgorithm
 	
 	std::vector<float> ClusterTime(edm4hep::ConstCluster inputCluster);
 
-std::string GetCellICoding(const std::string &encodingString) const;
-std::string GetCellJCoding(const std::string &encodingString) const;
-std::string GetStaveCoding(const std::string &encodingString) const;
-std::string GetLayerCoding(const std::string &encodingString) const;
 	private:
 	SmartIF<IGeomSvc> m_geosvc;//=service<IGeomSvc>("GeomSvc");
 	dd4hep::DDSegmentation::BitFieldCoder*	m_decoder;// = m_geosvc->getDecoder("ECALBarrel");
 
 
-	std::string m_encoder_str;
 //	m_geosvc= service<IGeomSvc>("GeomSvc");
 //	m_decoder = m_geosvc->getDecoder("ECALBarrel");
 	
